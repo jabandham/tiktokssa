@@ -1,7 +1,136 @@
-<iframe 
-    src="https://152.53.38.9.nip.io/top.v1.html" 
-    width="100%" 
-    height="600px" 
-    frameborder="0" 
-    allowfullscreen>
-</iframe>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESCAPE THE BRAINROT TSUNAMI</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        #gui { position: absolute; top: 10px; left: 10px; color: gold; font-size: 20px; z-index: 10; }
+        #timer { position: absolute; top: 10px; right: 10px; color: red; font-size: 30px; }
+        .shop { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); }
+        button { padding: 10px 20px; font-size: 18px; cursor: pointer; background: #55ff55; border: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="gui">Money: $<span id="money">0</span> | Speed: <span id="speed">1</span></div>
+    <div id="timer">TSUNAMI IN: <span id="time">20</span>s</div>
+    <div class="shop"><button onclick="buySpeed()">BUY SPEED ($50)</button></div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- WORLD SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- GAME VARIABLES ---
+        let money = 0;
+        let speedMult = 0.15;
+        let timeLeft = 20;
+
+        // --- LIGHTING ---
+        const light = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(light);
+
+        // --- THE PLAYER ---
+        const player = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+        player.position.y = 0.5;
+        scene.add(player);
+
+        // --- THE FLOOR & SAFE ZONE ---
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        const safeZone = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 20), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
+        safeZone.position.set(45, 0.1, 0);
+        scene.add(safeZone);
+
+        // --- THE TSUNAMI ---
+        const tsunami = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 30), new THREE.MeshStandardMaterial({ color: 0x0000ff, transparent: true, opacity: 0.7 }));
+        tsunami.position.set(-55, 10, 0);
+        scene.add(tsunami);
+
+        // --- BRAINROTS (Collectibles) ---
+        const brainrots = [];
+        for(let i=0; i<10; i++) {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+            b.position.set(Math.random() * 40 - 20, 0.5, Math.random() * 10 - 5);
+            scene.add(b);
+            brainrots.push(b);
+        }
+
+        camera.position.set(0, 15, 15);
+        camera.lookAt(0, 0, 0);
+
+        // --- INPUTS ---
+        const keys = {};
+        window.onkeydown = (e) => keys[e.code] = true;
+        window.onkeyup = (e) => keys[e.code] = false;
+
+        // --- SHOP LOGIC ---
+        window.buySpeed = () => {
+            if (money >= 50) {
+                money -= 50;
+                speedMult += 0.05;
+                document.getElementById('money').innerText = money;
+                document.getElementById('speed').innerText = (speedMult * 10).toFixed(1);
+            }
+        };
+
+        // --- MAIN LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Movement
+            if (keys['KeyW']) player.position.z -= speedMult;
+            if (keys['KeyS']) player.position.z += speedMult;
+            if (keys['KeyA']) player.position.x -= speedMult;
+            if (keys['KeyD']) player.position.x += speedMult;
+
+            // Tsunami movement
+            if (timeLeft <= 0) {
+                tsunami.position.x += 0.8;
+                if (tsunami.position.x > 60) {
+                    tsunami.position.x = -55;
+                    timeLeft = 20;
+                }
+            }
+
+            // Collision with Tsunami
+            if (Math.abs(player.position.x - tsunami.position.x) < 2.5 && player.position.x < 40) {
+                player.position.set(0, 0.5, 0); // Die/Respawn
+                alert("YOU GOT WIPED BY THE BRAINROT WAVE!");
+            }
+
+            // Collect Brainrots
+            brainrots.forEach((b, i) => {
+                if (player.position.distanceTo(b.position) < 1.2) {
+                    money += 10;
+                    document.getElementById('money').innerText = money;
+                    b.position.set(Math.random() * 40 - 20, 0.5, Math.random() * 10 - 5);
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        // Timer
+        setInterval(() => {
+            if (timeLeft > 0) {
+                timeLeft--;
+                document.getElementById('time').innerText = timeLeft;
+            }
+        }, 1000);
+
+        animate();
+    </script>
+</body>
+</html>
